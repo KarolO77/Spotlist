@@ -1,19 +1,21 @@
 from flask import Flask, redirect, request, session, url_for, render_template
+import subprocess
 import requests
 import json
 
-from pprint import pprint
-from credentials import *
-
-app = Flask(__name__)
-app.secret_key = 'your_secret_key'
-app.config['SESSION_COOKIE_NAME'] = 'your_session_cookie'
 
 # Spotify API credentials
+from credentials import *
+
 CLIENT_ID = client_id
 CLIENT_SECRET = client_secret
 REDIRECT_URI = 'http://localhost:3000/callback'
 SCOPE = 'playlist-modify-public'
+
+
+app = Flask(__name__)
+app.secret_key = 'your_secret_key'
+app.config['SESSION_COOKIE_NAME'] = 'your_session_cookie'
 
 
 @app.route('/')
@@ -57,6 +59,7 @@ def callback():
 def create_playlist():
     if request.method == 'POST':
         playlist_name = request.form['playlist_name']
+        artist_name = request.form['artist_name']
         access_token = session.get('access_token')
         if not access_token:
             return redirect(url_for('login'))
@@ -69,7 +72,6 @@ def create_playlist():
         user_profile_response = requests.get('https://api.spotify.com/v1/me', headers=headers)
         user_profile_data = user_profile_response.json()
         user_id = user_profile_data['id']
-        print(user_id)
 
         create_playlist_url = f'https://api.spotify.com/v1/users/{user_id}/playlists'
         playlist_data = json.dumps({
@@ -78,9 +80,9 @@ def create_playlist():
         })
 
         create_response = requests.post(create_playlist_url, data=playlist_data, headers=headers)
-        print(create_response)
         if create_response.status_code == 201:
             playlist_id = create_response.json()['id']
+            subprocess.run(['python', 'wrapper.py', artist_name])
             add_tracks_to_playlist(playlist_id, access_token)
             return 'Playlist created and tracks added successfully!'
         else:
@@ -98,7 +100,7 @@ def add_tracks_to_playlist(playlist_id, access_token):
     with open('setlist.txt', 'r', encoding="UTF-8") as file:
         lines = file.readlines()
         artist_name = lines[0].strip()
-        tracks = [line.strip() for line in lines[1:]]
+        tracks = {line.strip() for line in lines[1:]}
 
     track_uris = []
     for track in tracks:
@@ -111,13 +113,15 @@ def add_tracks_to_playlist(playlist_id, access_token):
             track_uris.append(search_results['tracks']['items'][0]['uri'])
         else:
             # If no track found, get the top result (track or podcast)
-            fallback_search_url = f'https://api.spotify.com/v1/search?q={track}&limit=1'
+            query = f'{track} {artist_name}'
+            type = "episode%2Ctrack"
+            fallback_search_url = f'https://api.spotify.com/v1/search?q={query}&type={type}&limit=1'
             fallback_search_response = requests.get(fallback_search_url, headers=headers)
             fallback_search_results = fallback_search_response.json()
 
             if fallback_search_results['tracks']['items']:
                 track_uris.append(fallback_search_results['tracks']['items'][0]['uri'])
-            elif fallback_search_results['episodes']['items']:
+            if fallback_search_results['episodes']['items']:
                 track_uris.append(fallback_search_results['episodes']['items'][0]['uri'])
 
     if track_uris:

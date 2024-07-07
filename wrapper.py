@@ -1,5 +1,5 @@
 from datetime import datetime
-
+import sys
 import requests
 from time import sleep
 from bs4 import BeautifulSoup
@@ -45,7 +45,7 @@ def save_artists_setlist(setlist, artist):
             f.write(f"{title}\n")
 
 if __name__ == "__main__":
-    artist = input("Artist: ")
+    artist = sys.argv[1]
     artist_id = get_artist_id(artist=artist)
     setlist = get_artists_setlist(artist_id)
     save_artists_setlist(setlist, artist)
