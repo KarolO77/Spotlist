@@ -2,7 +2,7 @@ from flask import Flask, redirect, request, session, url_for, render_template
 import subprocess
 import requests
 import json
-
+import webbrowser
 
 # Spotify API credentials
 from credentials import *
@@ -133,4 +133,5 @@ def add_tracks_to_playlist(playlist_id, access_token):
 
 
 if __name__ == '__main__':
+    webbrowser.open('http://localhost:3000/')
     app.run(port=3000, debug=True)
