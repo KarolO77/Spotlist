@@ -103,6 +103,7 @@ def add_tracks_to_playlist(playlist_id, access_token):
         tracks = {line.strip() for line in lines[1:]}
 
     track_uris = []
+    position = -1
     for track in tracks:
         query = f'{track} artist:{artist_name}'
         search_url = f'https://api.spotify.com/v1/search?q={query}&type=track&limit=1'
@@ -111,8 +112,9 @@ def add_tracks_to_playlist(playlist_id, access_token):
         
         if search_results['tracks']['items']:
             track_uris.append(search_results['tracks']['items'][0]['uri'])
+            position += 1
         else:
-            # If no track found, get the top result (track or podcast)
+            # If no track found, get the top result (track and podcast because leaks are usually posted as podcasts)
             query = f'{track} {artist_name}'
             type = "episode%2Ctrack"
             fallback_search_url = f'https://api.spotify.com/v1/search?q={query}&type={type}&limit=1'
@@ -123,11 +125,13 @@ def add_tracks_to_playlist(playlist_id, access_token):
                 track_uris.append(fallback_search_results['tracks']['items'][0]['uri'])
             if fallback_search_results['episodes']['items']:
                 track_uris.append(fallback_search_results['episodes']['items'][0]['uri'])
+            position += 2
 
     if track_uris:
         add_tracks_url = f'https://api.spotify.com/v1/playlists/{playlist_id}/tracks'
         add_tracks_data = json.dumps({
-            'uris': track_uris
+            'uris': track_uris,
+            "position": position
         })
         requests.post(add_tracks_url, data=add_tracks_data, headers=headers)
 
